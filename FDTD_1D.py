@@ -38,3 +38,51 @@ def field_evolve_vacuum(E_0 : np.ndarray, B_0 : np.ndarray, dx, dt, step):
         B_history[i+1][grid_size - 1] = B_history[i][grid_size - 1] - dt / dx * (E_history[i][0] - E_history[i][grid_size - 1])
 
     return E_history, B_history
+
+import numpy as np
+
+def field_evolve_dispersive(E_0, B_0, J_0, dx, dt, step, omega_p, nu):
+    """
+    Compute evolution of electromagnetic field in a dispersive medium in 1D using the
+    FDTD method. All quantities are assumed to be dimensionless.
+
+    Inputs:
+    - E_0 : Initial electric field at integer coordinates, t=-dt/2. Assume periodic boundary conditions.
+    - B_0 : Initial magnetic field at half-integer coordinates, t=0.
+    - J_0 : Initial displacement current at integer coordinates, t=-dt/2.
+    - dx : Standard grid size of the fields.
+    - dt : Time step of field evolution.
+    - step : Total number of time steps to be simulated.
+    - omega_p : Plasma frequency.
+    - nu : Collision frequency.
+
+    Returns:
+    - E_history: Numpy array containing history of electric field evolution.
+    - B_history: Numpy array containing history of magnetic field evolution.
+    """
+
+    grid_size = E_0.shape[0]
+    E_history = np.zeros((step + 1, grid_size))
+    B_history = np.zeros((step + 1, grid_size))
+    J_history = np.zeros((step + 1, grid_size))  # Added for displacement current
+
+    E_history[0] = E_0.copy()
+    B_history[0] = B_0.copy()
+    J_history[0] = J_0.copy()
+
+    for i in range(step):
+        # Update Electric field
+        for j in range(1, grid_size):
+            E_history[i+1][j] = E_history[i][j] - dt / dx * (B_history[i][j] - B_history[i][j-1]) - J_history[i][j] * dt
+        E_history[i+1][0] = E_history[i][0] - dt / dx * (B_history[i][0] - B_history[i][grid_size - 2]) - J_history[i][0] * dt
+
+        # Update magnetic field
+        for k in range(grid_size - 1):
+            B_history[i+1][k] = B_history[i][k] - dt / dx * (E_history[i][k+1] - E_history[i][k])
+        B_history[i+1][grid_size - 1] = B_history[i][grid_size - 1] - dt / dx * (E_history[i][0] - E_history[i][grid_size - 1])
+
+        # Update displacement current
+        for j in range(grid_size):
+            J_history[i+1][j] = J_history[i][j] + omega_p**2 * E_history[i][j] * dt - nu * J_history[i][j] * dt
+
+    return E_history, B_history
